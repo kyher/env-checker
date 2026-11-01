@@ -618,3 +618,13 @@ Each checkpoint leaves `go test -race ./...` passing and the tool releasable.
 - Never update golden files without reading the diff. Golden diffs are review material.
 - If a test reveals that the spec, contracts and data model disagree, stop and fix the
   documents first (`/speckit-analyze` can help) rather than letting the code decide.
+
+---
+
+## Phase 8: Convergence
+
+- [X] T042 CRITICAL: Commit a `staticcheck.conf` at the repository root (for example, `checks = ["all", "-ST1000"]`, tuned so `go tool staticcheck ./...` stays clean), so the lint configuration is versioned per Constitution: Quality Gates (partial)
+- [X] T043 Allow single-quoted values to span multiple lines in `internal/dotenv/parse.go`. Treat them literally, and give `unterminated quote` only when the quote never closes before end of file. Add cases to `internal/dotenv/parse_test.go`: `A='multi\nline'` followed by `B=1` gives `A` at line 1 and `B` at line 3 with no errors, and `A='x\nline'` followed by `B=1` gives `A` empty false. Add a single-quoted multi-line entry to `testdata/syntax/.env`. Update the single-quote rule in research R3. Per FR-003 / Edge Cases (partial)
+- [X] T044 Report a line longer than the scanner limit as an unparseable finding instead of failing the whole run. Read lines with `bufio.Reader.ReadLine`, or skip the over-long line, and record `ParseError{Line, Reason: ReasonLineTooLong}` with a new fixed reason `line too long` that contains no line content. Test it in `internal/dotenv/parse_test.go` with a 2 MiB value, and add the reason to the fixed-reason list in research R3 and contracts/json-report.md. Per Constitution: Technical Constraints (partial)
+- [X] T045 Add a test to `cmd/env-checker/run_test.go` that calls `run` with a stdout writer that always fails. Assert exit code 2 and that stderr starts with `env-checker: write report:`, for both `text` and `json`. Per contracts/cli.md exit codes (partial)
+- [X] T046 Record in research.md (under R4, or a new note) that `dotenv.File.Keys()` replaces the `check.Keys` export named in T008, so no `check.Keys` is added. Per T008 (partial)

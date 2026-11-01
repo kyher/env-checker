@@ -40,14 +40,16 @@ than one approach was reasonable.
   - The key must match `[A-Za-z_][A-Za-z0-9_]*`. Whitespace around `=` is allowed.
   - **Unquoted value**: runs to the end of the line. A `#` that has whitespace before it starts
     an inline comment. Surrounding whitespace is trimmed.
-  - **Single-quoted value**: taken literally and must close on the same line.
+  - **Single-quoted value**: taken literally (no escapes) and may span several lines.
+    *(Changed in convergence task T043. This was originally same-line only, which conflicted
+    with FR-003 and the multi-line edge case.)*
   - **Double-quoted value**: `\"` escapes are allowed and the value may span several lines.
     Lines inside the quotes are part of the entry and are never reported as unparseable.
   - Anything after a closing quote other than whitespace or a `# comment` makes the line
     unparseable.
   - **Unparseable lines** are reported with one of these fixed reasons: `missing "="`,
     `invalid key`, `unterminated quote`, `unexpected text after closing quote`.
-    - With an unterminated double quote, the parser resumes at the line after the opening
+    - With an unterminated quote of either kind, the parser resumes at the line after the opening
       line, so one bad quote does not hide the rest of the file.
     - The reason never includes text from the line itself, which could contain a secret.
 - **Rationale**: This covers the syntax used by docker compose, godotenv, python-dotenv and
@@ -57,6 +59,13 @@ than one approach was reasonable.
   not needed when only checking whether a value is empty). Allowing `.` and `-` in keys (no
   shell can export these, so rejecting them is more likely to catch mistakes).
 
+- **Line length**: lines have no length limit, so a very long value such as an inlined
+  certificate is parsed as a normal entry.
+  *(Convergence task T044 suggested reporting over-long lines with a new `line too long`
+  reason. Instead, the 1 MiB limit was removed: a long value is valid, so flagging it would be
+  a false finding. Either way the run no longer aborts, and the fixed set of reasons is
+  unchanged.)*
+
 ## R4. Discarding values early
 
 - **Decision**: The parser works out whether a value is empty and then throws the value away.
@@ -65,6 +74,10 @@ than one approach was reasonable.
   panic. This makes Principle I hold by design, and tests then check that it holds.
 - **Alternatives considered**: Keeping values and hiding them when printing (one mistake in
   any output path would leak a secret).
+
+- **Note (convergence task T046)**: T008 named a `check.Keys(f dotenv.File)` export. It was
+  not added, because `dotenv.File.Keys()` already returns the unique keys in order of first
+  appearance, and the comparison uses that directly.
 
 ## R5. Misspelling distance measure and pairing
 

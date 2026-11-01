@@ -19,8 +19,6 @@ const (
 	ReasonTrailingText      = "unexpected text after closing quote"
 )
 
-const maxLineSize = 1 << 20
-
 // Entry is one KEY=VALUE assignment.
 //
 // Entry deliberately has no value field (constitution Principle I).
@@ -98,21 +96,27 @@ func Parse(path string, r io.Reader) (File, error) {
 	return f, nil
 }
 
+// readLines splits r into lines with no length limit, so a very long value
+// (e.g. an inlined certificate) is parsed like any other.
 func readLines(r io.Reader) ([]string, error) {
-	sc := bufio.NewScanner(r)
-	sc.Buffer(make([]byte, 0, 64*1024), maxLineSize)
+	br := bufio.NewReader(r)
 	var lines []string
-	for sc.Scan() {
-		line := strings.TrimSuffix(sc.Text(), "\r")
-		if len(lines) == 0 {
-			line = strings.TrimPrefix(line, "\xEF\xBB\xBF")
+	for {
+		line, err := br.ReadString('\n')
+		if line != "" {
+			line = strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
+			if len(lines) == 0 {
+				line = strings.TrimPrefix(line, "\xEF\xBB\xBF")
+			}
+			lines = append(lines, line)
 		}
-		lines = append(lines, line)
+		if err == io.EOF {
+			return lines, nil
+		}
+		if err != nil {
+			return nil, err
+		}
 	}
-	if err := sc.Err(); err != nil {
-		return nil, err
-	}
-	return lines, nil
 }
 
 const blanks = " \t"
@@ -143,18 +147,9 @@ func parseEntry(lines []string, i int) (last int, entry *Entry, reason string) {
 	switch {
 	case rest == "":
 		empty = true
-	case rest[0] == '\'':
-		end := strings.IndexByte(rest[1:], '\'')
-		if end < 0 {
-			return i, nil, ReasonUnterminatedQuote
-		}
-		empty = end == 0
-		if !onlyComment(rest[end+2:]) {
-			return i, nil, ReasonTrailingText
-		}
-	case rest[0] == '"':
+	case rest[0] == '\'' || rest[0] == '"':
 		var ok bool
-		last, empty, ok = scanDoubleQuoted(lines, i, rest[1:])
+		last, empty, ok = scanQuoted(lines, i, rest[1:], rest[0])
 		if !ok {
 			return i, nil, ReasonUnterminatedQuote
 		}
@@ -168,20 +163,21 @@ func parseEntry(lines []string, i int) (last int, entry *Entry, reason string) {
 	return i, &Entry{Key: key, Line: start + 1, Empty: empty}, ""
 }
 
-// scanDoubleQuoted scans a double-quoted value beginning just after the
-// opening quote in s (which is on lines[i]). It returns the index of the line
-// holding the closing quote, whether the value is empty, and ok=false if the
-// quote is never closed. If text other than a comment follows the closing
-// quote, last is -1.
-func scanDoubleQuoted(lines []string, i int, s string) (last int, empty bool, ok bool) {
+// scanQuoted scans a quoted value beginning just after the opening quote
+// (single or double) in s, which is on lines[i]. Values may span lines;
+// backslash escapes apply only inside double quotes. It returns the index of
+// the line holding the closing quote, whether the value is empty, and
+// ok=false if the quote is never closed. If text other than a comment follows
+// the closing quote, last is -1.
+func scanQuoted(lines []string, i int, s string, quote byte) (last int, empty bool, ok bool) {
 	empty = true
 	for {
 		for p := 0; p < len(s); p++ {
-			switch s[p] {
-			case '\\':
+			switch {
+			case s[p] == '\\' && quote == '"':
 				empty = false
 				p++
-			case '"':
+			case s[p] == quote:
 				if !onlyComment(s[p+1:]) {
 					return -1, empty, true
 				}

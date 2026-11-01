@@ -176,6 +176,26 @@ func TestDeterministic(t *testing.T) {
 	}
 }
 
+type failWriter struct{}
+
+func (failWriter) Write([]byte) (int, error) { return 0, os.ErrClosed }
+
+func TestWriteFailure(t *testing.T) {
+	for _, format := range formats {
+		t.Run(format, func(t *testing.T) {
+			t.Chdir(testdata("missing"))
+			var errb bytes.Buffer
+			code := run(formatArgs(format), failWriter{}, &errb)
+			if code != 2 {
+				t.Errorf("exit code = %d, want 2", code)
+			}
+			if !strings.HasPrefix(errb.String(), "env-checker: write report:") {
+				t.Errorf("stderr = %q", errb.String())
+			}
+		})
+	}
+}
+
 func TestVersionAndHelp(t *testing.T) {
 	stdout, _, code := runIn(t, testdata("clean"), "--version")
 	if code != 0 || stdout != "env-checker dev\n" {

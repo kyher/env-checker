@@ -44,6 +44,22 @@ func TestParse(t *testing.T) {
 			entries: []Entry{e("KEY", 1, false), e("NEXT", 4, false)},
 		},
 		{
+			name:    "multi-line single quoted",
+			in:      "A='multi\nline'\nB=1\n",
+			entries: []Entry{e("A", 1, false), e("B", 3, false)},
+		},
+		{
+			name:    "multi-line single quoted is literal",
+			in:      "A='x\\\nline' # c\nB=\n",
+			entries: []Entry{e("A", 1, false), e("B", 3, true)},
+		},
+		{
+			name:    "single quote unterminated across lines",
+			in:      "A='never\nB=1\nC=2\n",
+			entries: []Entry{e("B", 2, false), e("C", 3, false)},
+			errs:    []ParseError{perr(1, ReasonUnterminatedQuote)},
+		},
+		{
 			name:    "duplicates kept",
 			in:      "A=1\nA=2\n",
 			entries: []Entry{e("A", 1, false), e("A", 2, false)},
@@ -124,6 +140,20 @@ func TestParseReasonsAreFixed(t *testing.T) {
 		if strings.Contains(pe.Reason, "SECRET") {
 			t.Errorf("reason %q contains input text", pe.Reason)
 		}
+	}
+}
+
+// A very long value (e.g. an inlined certificate) is a valid entry and must
+// not abort parsing.
+func TestParseLongLine(t *testing.T) {
+	in := "BIG=" + strings.Repeat("x", 2<<20) + "\nNEXT=1\n"
+	f, err := Parse("x", strings.NewReader(in))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	want := []Entry{e("BIG", 1, false), e("NEXT", 2, false)}
+	if !slices.Equal(f.Entries, want) || len(f.Errors) != 0 {
+		t.Errorf("Entries = %+v, Errors = %+v", f.Entries, f.Errors)
 	}
 }
 
