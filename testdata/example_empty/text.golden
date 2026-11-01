@@ -1,0 +1,4 @@
+.env:1: unexpected: API_KEY
+.env:2: unexpected: DEBUG
+
+2 issues: 2 unexpected

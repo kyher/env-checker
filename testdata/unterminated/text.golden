@@ -1,0 +1,4 @@
+.env:1: unparseable: unterminated quote
+.env.example:2: missing: SECRET
+
+2 issues: 1 unparseable, 1 missing

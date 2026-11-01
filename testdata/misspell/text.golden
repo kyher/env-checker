@@ -1,0 +1,6 @@
+.env.example:3: missing: PORT
+.env:1: likely misspelling: DATABSE_URL → did you mean DATABASE_URL? (.env.example:1)
+.env:2: likely misspelling: api_key → did you mean API_KEY? (.env.example:2)
+.env:3: unexpected: REDIS_HOST
+
+4 issues: 1 missing, 2 likely misspellings, 1 unexpected
