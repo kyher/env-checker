@@ -1,0 +1,1 @@
+{"schema_version":1,"ok":false,"reference":".env.example","target":".env","findings":[{"category":"missing","certainty":"definite","key":"DB_PORT","locations":[{"file":".env.example","line":2}]}],"summary":{"total":1,"unparseable":0,"missing":1,"likely_misspelling":0,"duplicate":0,"empty":0,"unexpected":0}}

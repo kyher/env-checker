@@ -1,0 +1,6 @@
+.env:3: unparseable: missing "="
+.env:1,4: duplicate: PORT
+.env:2: empty: TOKEN
+.env:5: unexpected: LEGACY_FLAG
+
+4 issues: 1 unparseable, 1 duplicate, 1 empty, 1 unexpected
